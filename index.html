@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Music Shader Visualizer</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #000;
+        }
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 10;
+        }
+        button {
+            padding: 12px 24px;
+            font-size: 16px;
+            font-family: sans-serif;
+            background: #ff0055;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="ui">
+        <button id="playBtn">Play Music</button>
+    </div>
+
+    <canvas id="glCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById("glCanvas");
+        const gl = canvas.getContext("webgl");
+
+        if (!gl) {
+            alert("WebGL not supported!");
+        }
+
+        const vsSource = `
+            attribute vec2 a_position;
+            void main() {
+                gl_Position = vec4(a_position, 0.0, 1.0);
+            }
+        `;
+
+        function createShader(gl, type, source) {
+            const shader = gl.createShader(type);
+            gl.shaderSource(shader, source);
+            gl.compileShader(shader);
+            if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+                console.error(gl.getShaderInfoLog(shader));
+                gl.deleteShader(shader);
+                return null;
+            }
+            return shader;
+        }
+
+        async function init() {
+            // 1. Fetch your separate shader file
+            const response = await fetch('shader.frag');
+            const fsSource = await response.text();
+
+            const vertexShader = createShader(gl, gl.VERTEX_SHADER, vsSource);
+            const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fsSource);
+
+            const program = gl.createProgram();
+            gl.attachShader(program, vertexShader);
+            gl.attachShader(program, fragmentShader);
+            gl.linkProgram(program);
+
+            const positionAttributeLocation = gl.getAttribLocation(program, "a_position");
+            const positionBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+            const positions = [
+                -1, -1,
+                 1, -1,
+                -1,  1,
+                -1,  1,
+                 1, -1,
+                 1,  1,
+            ];
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
+
+            // Get uniform locations
+            const resolutionUniformLocation = gl.getUniformLocation(program, "u_resolution");
+            const timeUniformLocation = gl.getUniformLocation(program, "u_time");
+            const bassUniformLocation = gl.getUniformLocation(program, "u_bass");
+            const midUniformLocation = gl.getUniformLocation(program, "u_mid");
+            const trebleUniformLocation = gl.getUniformLocation(program, "u_treble");
+            const activeUniformLocation = gl.getUniformLocation(program, "u_active");
+
+            // 2. Set up Audio Context and Analyser
+            let audioCtx, analyser, dataArray;
+            let isPlaying = false;
+            const audioElement = new Audio('music.mp3'); // Make sure your MP3 file is in the folder!
+
+            document.getElementById("playBtn").addEventListener("click", function() {
+                if (!isPlaying) {
+                    audioElement.play();
+                    
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    analyser = audioCtx.createAnalyser();
+                    analyser.fftSize = 256; // Splits spectrum into 128 bins
+                    
+                    const source = audioCtx.createMediaElementSource(audioElement);
+                    source.connect(analyser);
+                    analyser.connect(audioCtx.destination);
+                    
+                    dataArray = new Uint8Array(analyser.frequencyBinCount);
+                    isPlaying = true;
+                    this.style.display = "none"; // Hide button once clicked
+                }
+            });
+
+            // 3. Render Loop
+            function render(time) {
+                time *= 0.001; // Convert milliseconds to seconds
+
+                // Match canvas resolution to window size
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                gl.viewport(0, 0, canvas.width, canvas.height);
+
+                gl.useProgram(program);
+
+                gl.enableVertexAttribArray(positionAttributeLocation);
+                gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+                gl.vertexAttribPointer(positionAttributeLocation, 2, gl.FLOAT, false, 0, 0);
+
+                // Pass active state to the shader (1.0 if playing, 0.0 if stopped)
+                gl.uniform1f(activeUniformLocation, isPlaying ? 1.0 : 0.0);
+
+                // Pass time and resolution
+                gl.uniform2f(resolutionUniformLocation, canvas.width, canvas.height);
+                gl.uniform1f(timeUniformLocation, time);
+
+                // Extract frequency bands if music is playing
+                let bass = 0.0, mid = 0.0, treble = 0.0;
+                if (isPlaying && analyser) {
+                    analyser.getByteFrequencyData(dataArray);
+
+                    // Helper to average frequency ranges and normalize to 0.0 - 1.0
+                    function getRange(start, end) {
+                        let sum = 0;
+                        for (let i = start; i < end; i++) {
+                            sum += dataArray[i];
+                        }
+                        return (sum / (end - start)) / 255.0;
+                    }
+
+                    bass = getRange(0, 10);       // Low frequencies
+                    mid = getRange(10, 30);     // Mid frequencies
+                    treble = getRange(30, 80);   // High frequencies
+                }
+
+                // Pass music values into your shader uniforms!
+                gl.uniform1f(bassUniformLocation, bass);
+                gl.uniform1f(midUniformLocation, mid);
+                gl.uniform1f(trebleUniformLocation, treble);
+
+                gl.drawArrays(gl.TRIANGLES, 0, 6);
+                requestAnimationFrame(render);
+            }
+
+            requestAnimationFrame(render);
+        }
+
+        init();
+    </script>
+
+</body>
+</html>
