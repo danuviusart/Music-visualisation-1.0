@@ -104,6 +104,7 @@
             const midUniformLocation = gl.getUniformLocation(program, "u_mid");
             const trebleUniformLocation = gl.getUniformLocation(program, "u_treble");
             const activeUniformLocation = gl.getUniformLocation(program, "u_active");
+            
 
             // 2. Set up Audio Context and Analyser
             let audioCtx, analyser, dataArray;
@@ -165,8 +166,8 @@
                     }
 
                     bass = getRange(0, 10);       // Low frequencies
-                    mid = getRange(10, 30);     // Mid frequencies
-                    treble = getRange(30, 80);   // High frequencies
+                    mid = getRange(10, 40);     // Mid frequencies
+                    treble = getRange(40, 70);   // High frequencies
                 }
 
                 // Pass music values into your shader uniforms!
