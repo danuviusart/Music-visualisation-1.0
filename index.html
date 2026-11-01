@@ -73,7 +73,7 @@
 
         async function init() {
             // 1. Fetch your separate shader file
-            const response = await fetch('shader.frag');
+            const response = await fetch('shader.frag?v=' + Date.now());
             const fsSource = await response.text();
 
             const vertexShader = createShader(gl, gl.VERTEX_SHADER, vsSource);
