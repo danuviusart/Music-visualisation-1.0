@@ -31,9 +31,14 @@ vec3 wave(vec2 st, float freq, float tspeed, float ampl, vec3 base_color){
 }
 
 void main() {
-    vec2 st = gl_FragCoord.xy/u_resolution;
-    float screen_height_units = u_resolution.y / u_resolution.x;
-    st.y -= (screen_height_units - 0.6) * 0.5;
+    // 1. Center the raw pixel coordinates around the screen origin (0, 0)
+    vec2 st = gl_FragCoord.xy - 0.5 * u_resolution.xy;
+    
+    // 2. Scale by the LARGER dimension so the entire composition fits on any screen shape
+    st /= max(u_resolution.x, u_resolution.y);
+    
+    // 3. Shift origin back to (0.5, 0.5) to keep your existing 0.0 - 1.0 wave math working
+    st += 0.5;
     vec3 color = vec3(0.0);
     // float dynamic_amp = 0.01 + abs(sin(u_time + 1.5)) * 0.15;
     
