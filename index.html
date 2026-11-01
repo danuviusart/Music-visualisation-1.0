@@ -109,24 +109,33 @@
             // 2. Set up Audio Context and Analyser
             let audioCtx, analyser, dataArray;
             let isPlaying = false;
-            const audioElement = new Audio('music.mp3'); // Make sure your MP3 file is in the folder!
+            const audioElement = new Audio('music.mp3'); 
 
             document.getElementById("playBtn").addEventListener("click", function() {
                 if (!isPlaying) {
                     audioElement.play();
                     
-                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                    analyser = audioCtx.createAnalyser();
-                    analyser.fftSize = 256; // Splits spectrum into 128 bins
+                    if (!audioCtx) {
+                        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                        analyser = audioCtx.createAnalyser();
+                        analyser.fftSize = 256; 
+                        
+                        const source = audioCtx.createMediaElementSource(audioElement);
+                        source.connect(analyser);
+                        analyser.connect(audioCtx.destination);
+                        
+                        dataArray = new Uint8Array(analyser.frequencyBinCount);
+                    }
                     
-                    const source = audioCtx.createMediaElementSource(audioElement);
-                    source.connect(analyser);
-                    analyser.connect(audioCtx.destination);
-                    
-                    dataArray = new Uint8Array(analyser.frequencyBinCount);
                     isPlaying = true;
                     this.style.display = "none"; // Hide button once clicked
                 }
+            });
+
+            // Listen for when the audio track finishes playing
+            audioElement.addEventListener("ended", function() {
+                isPlaying = false;
+                document.getElementById("playBtn").style.display = "block"; // Bring the play button back!
             });
 
             // 3. Render Loop
@@ -165,9 +174,9 @@
                         return (sum / (end - start)) / 255.0;
                     }
 
-                    bass = getRange(0, 10);       // Low frequencies
-                    mid = getRange(10, 40);     // Mid frequencies
-                    treble = getRange(40, 70);   // High frequencies
+                    bass = getRange(0, 8);       // Low frequencies
+                    mid = getRange(8, 35);     // Mid frequencies
+                    treble = getRange(35, 80);   // High frequencies
                 }
 
                 // Pass music values into your shader uniforms!

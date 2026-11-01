@@ -8,51 +8,52 @@ uniform float u_bass;
 uniform float u_mid;
 uniform float u_treble;
 uniform float u_active;
+#define PI 3.14159265359
 
-// Custom plot function to draw a line based on a mathematical curve (pct)
-float plot(vec2 st, float pct) {
-    // Measures distance from st.y to the wave curve (pct)
-    // Smoothstep creates a thin, anti-aliased line (0.02 thickness)
-    return smoothstep(pct - 0.5, pct, st.y) - smoothstep(pct, pct + 0.1, st.y);
+float plot(vec2 st, float pct){
+  return smoothstep( pct-0.15, pct, st.y) -
+         smoothstep( pct, pct+0.01, st.y);
+}
+
+vec3 wave(vec2 st, float freq, float tspeed, float ampl, vec3 base_color){
+    
+    // squising wave edges
+    float envelope = sin(st.x * PI);
+    
+    // global color shift
+    float color_shift = sin(u_time * 0.5) * 0.5 + 0.5;
+    vec3 dynamic_color = 0.6 + 0.4 * cos(u_time * 0.5 + vec3(0.0, 4.0, 6.0));
+    
+    float ysin = sin(st.x * freq - u_time * tspeed) * (ampl * 0.2) * envelope + 0.5;
+    float pct = plot(st, ysin);
+    vec3 wave_color = base_color * pct * dynamic_color;
+    return wave_color;
 }
 
 void main() {
-    // 1. Normalize coordinates (st.x and st.y go from 0.0 to 1.0)
-    vec2 st = gl_FragCoord.xy / u_resolution.xy;
+    vec2 st = gl_FragCoord.xy/u_resolution;
+    vec3 color = vec3(0.0);
+    // float dynamic_amp = 0.01 + abs(sin(u_time + 1.5)) * 0.15;
+    
+    // --- Back wave ---
+    vec3 backwave_color = wave(st, 5.0, 2.5, u_bass, vec3 (0.1, 0.15, 0.7));
+    color += backwave_color;
 
-    // Scale x so we see multiple wave cycles across the canvas
-    float x = st.x * 12.56;
-
-    // 2. FIRST WAVE (Red/Crimson): Standard sine wave
-    float y1 = sin(x*0.6 + u_time) * 0.3 * u_mid + 0.5;
-    float line1Intensity = plot(st, y1);
-
-    // 3. SECOND WAVE (Blue): Cosine wave moving opposite direction
-    float y2 = sin(x*0.8 + u_time) * 0.3 * (u_bass*0.3) + 0.3;
-    float line2Intensity = plot(st, y2);
-
-    // 4. THIRD WAVE (Warm Orange): Faster frequency, slightly lower amplitude
-    float y3 = sin(x*0.5 + u_time) * 0.4 * u_treble + 0.75;
-    float line3Intensity = plot(st, y3);
-
-    // 5. Define your colors
-    vec3 backgroundColor = vec3(0.08, 0.02, 0.05); // Dark background
-    vec3 redLineColor     = vec3(0.85, 0.15, 0.20); // Deep rich red
-    vec3 blueLineColor    = vec3(0.50, 0.40, 0.95); // Cool blue
-    vec3 orangeLineColor  = vec3(0.98, 0.55, 0.10); // Warm bright orange
-
-    // 6. Layer the lines onto the background
-    vec3 finalColor = backgroundColor;
-
-    // Paint blue first
-    finalColor = mix(finalColor, blueLineColor, line2Intensity);
-
-    // Paint red second
-    finalColor = mix(finalColor, redLineColor, line1Intensity);
-
-    // Paint orange third (on top)
-    finalColor = mix(finalColor, orangeLineColor, line3Intensity);
-
-    // Output final color to screen
-    gl_FragColor = vec4(finalColor, 1.0);
+    // --- WAVE 1 (Small back wave) ---
+    vec3 wave1_color = wave(st, 10.0, 2.3, u_mid, vec3(0.4, 0.5, 2.3));
+    
+    // --- WAVE 2 (Big bright wave) ---
+    vec3 wave2_color = wave(st, 6.0, 2.7, u_treble, vec3(0.2, 0.8, 1.0));
+    
+    // --- WAVE 3 (Front small wave) ---
+    vec3 wave3_color = wave(st, 10.0, 3.5, u_bass, vec3(0.1, 0.3, 2.3));
+    
+    // --- WAVE 4 (Front tiny wave) ---
+    vec3 wave4_color = wave(st, 15.0, 7.5, u_mid * 0.2, vec3(0.4, 0.4, 1.3));
+    
+    // Adding blend into a bright glowing mix
+    color += wave1_color + wave2_color + wave3_color + wave4_color;
+    // Keep it black until active
+    //color *= u_active;
+    gl_FragColor = vec4(color, 1.0);
 }
