@@ -31,14 +31,23 @@ vec3 wave(vec2 st, float freq, float tspeed, float ampl, vec3 base_color){
 }
 
 void main() {
-    // 1. Center the raw pixel coordinates around the screen origin (0, 0)
-    vec2 st = gl_FragCoord.xy - 0.5 * u_resolution.xy;
+    /// 1. Define your target aspect ratio (matching your laptop view, e.g., 16:9)
+    float targetAspect = 16.0 / 9.0; 
     
-    // 2. Scale by the LARGER dimension so the entire composition fits on any screen shape
-    st /= max(u_resolution.x, u_resolution.y);
+    // 2. Normalize coordinates based on resolution
+    vec2 st = gl_FragCoord.xy / u_resolution.xy;
     
-    // 3. Shift origin back to (0.5, 0.5) to keep your existing 0.0 - 1.0 wave math working
-    st += 0.5;
+    // 3. Adjust coordinates to maintain fixed proportions and letterbox automatically
+    if (u_resolution.x / u_resolution.y > targetAspect) {
+        // Screen is wider than target (pillarbox: add bars on left/right)
+        float scale = u_resolution.y / u_resolution.x * targetAspect;
+        st.x = (st.x - 0.5) * scale + 0.5;
+    } else {
+        // Screen is taller than target (letterbox: add bars on top/bottom)
+        float scale = u_resolution.x / u_resolution.y / targetAspect;
+        st.y = (st.y - 0.5) * scale + 0.5;
+    }
+    
     vec3 color = vec3(0.0);
     // float dynamic_amp = 0.01 + abs(sin(u_time + 1.5)) * 0.15;
     
