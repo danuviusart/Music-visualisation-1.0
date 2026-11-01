@@ -32,7 +32,8 @@ vec3 wave(vec2 st, float freq, float tspeed, float ampl, vec3 base_color){
 
 void main() {
     vec2 st = gl_FragCoord.xy/u_resolution;
-    st.x *= u_resolution.x / u_resolution.y;
+    float screen_height_units = u_resolution.y / u_resolution.x;
+    st.y -= (screen_height_units - 0.6) * 0.5;
     vec3 color = vec3(0.0);
     // float dynamic_amp = 0.01 + abs(sin(u_time + 1.5)) * 0.15;
     
