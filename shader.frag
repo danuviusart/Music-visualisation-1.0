@@ -11,7 +11,7 @@ uniform float u_active;
 #define PI 3.14159265359
 
 float plot(vec2 st, float pct){
-  return smoothstep( pct-0.12, pct, st.y) -
+  return smoothstep( pct-0.1, pct, st.y) -
          smoothstep( pct, pct+0.01, st.y);
 }
 
@@ -24,30 +24,22 @@ vec3 wave(vec2 st, float freq, float tspeed, float ampl, vec3 base_color){
     float color_shift = sin(u_time * 0.5) * 0.5 + 0.5;
     vec3 dynamic_color = 0.6 + 0.4 * cos(u_time * 0.5 + vec3(0.0, 4.0, 6.0));
     
-    float ysin = sin(st.x * freq - u_time * tspeed) * (ampl * 0.1) * envelope + 0.5;
+    float ysin = sin(st.x * freq - u_time * tspeed) * (ampl * 0.15) * envelope + 0.5;
     float pct = plot(st, ysin);
     vec3 wave_color = base_color * pct * dynamic_color;
     return wave_color;
 }
 
 void main() {
-    /// 1. Define your target aspect ratio (matching your laptop view, e.g., 16:9)
-    float targetAspect = 16.0 / 9.0; 
+    // 1. Center the raw pixel coordinates around the screen origin (0, 0)
+    vec2 st = gl_FragCoord.xy - 0.5 * u_resolution.xy;
     
-    // 2. Normalize coordinates based on resolution
-    vec2 st = gl_FragCoord.xy / u_resolution.xy;
+    // 2. Scale by the LARGER dimension so the entire composition fits on any screen shape
+    st /= max(u_resolution.x, u_resolution.y);
     
-    // 3. Adjust coordinates to maintain fixed proportions and letterbox automatically
-    if (u_resolution.x / u_resolution.y > targetAspect) {
-        // Screen is wider than target (pillarbox: add bars on left/right)
-        float scale = u_resolution.y / u_resolution.x * targetAspect;
-        st.x = (st.x - 0.5) * scale + 0.5;
-    } else {
-        // Screen is taller than target (letterbox: add bars on top/bottom)
-        float scale = u_resolution.x / u_resolution.y / targetAspect;
-        st.y = (st.y - 0.5) * scale + 0.5;
-    }
-    
+    // 3. Shift origin back to (0.5, 0.5) to keep your existing 0.0 - 1.0 wave math working
+    st += 0.5;
+
     vec3 color = vec3(0.0);
     // float dynamic_amp = 0.01 + abs(sin(u_time + 1.5)) * 0.15;
     
@@ -59,7 +51,7 @@ void main() {
     vec3 wave1_color = wave(st, 10.0, 2.3, u_mid, vec3(0.4, 0.5, 1.3));
     
     // --- WAVE 2 (Big bright wave) ---
-    vec3 wave2_color = wave(st, 6.0, 2.7, u_treble, vec3(0.2, 0.8, 1.0));
+    vec3 wave2_color = wave(st, 6.0, 2.7, u_treble, vec3(0.2, 0.8, 2.0));
     
     // --- WAVE 3 (Front small wave) ---
     vec3 wave3_color = wave(st, 10.0, 3.5, u_bass, vec3(0.1, 0.3, 1.3));
@@ -71,6 +63,6 @@ void main() {
     color += wave1_color + wave2_color + wave3_color + wave4_color;
     // Keep it black until active
     //color *= u_active;
-    color *= 0.6;
+    color *= 0.5;
     gl_FragColor = vec4(color, 1.0);
 }
